@@ -80,14 +80,6 @@ project_name/
 ├── pyproject.toml
 └── README.md
 \`\`\`
-
-## License
-
-CC0
-
-## Author
-
-Philip Orange <git@philiporange.com>
 ```
 
 ## USAGE.md Structure
@@ -290,19 +282,15 @@ Keep README and documentation professional. Don't use emoji:
 - Powerful API
 ```
 
-## License and Author
+## README.md Restrictions
 
-Always include at the end of README:
+README.md MUST be focused entirely on the software itself. NEVER include:
 
-```markdown
-## License
+- **License section** - License info belongs in the LICENSE file only
+- **Author section** - Author info belongs in pyproject.toml only
+- **Contributing section** - Not needed for these projects
 
-CC0
-
-## Author
-
-Philip Orange <git@philiporange.com>
-```
+Keep the README purely functional: what the software does, how to install it, how to use it.
 
 ## Version Information
 

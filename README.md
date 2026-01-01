@@ -99,13 +99,3 @@ project_name/
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 ```
-
-Colors: slate (neutrals), indigo (primary), emerald (success), rose (danger)
-
-## Author
-
-Philip Orange <git@philiporange.com>
-
-## License
-
-CC0

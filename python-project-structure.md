@@ -12,22 +12,30 @@ project_name/
 │   ├── server.py           # FastAPI server
 │   ├── client.py           # Python client library
 │   ├── models.py           # Peewee ORM models
-│   └── utils.py            # Shared utilities
+│   ├── utils.py            # Shared utilities
+│   ├── static/             # Web frontend files
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   ├── js/
+│   │   │   ├── common.js
+│   │   │   └── app.js
+│   │   └── index.html
+│   └── templates/          # Handlebars templates (optional)
+│       ├── nav.hbs
+│       └── modal.hbs
 ├── tests/
 │   ├── __init__.py
 │   ├── test_core.py
 │   └── test_*.py
 ├── scripts/                # One-off scripts, migrations
-├── static/                 # Web frontend files
-│   ├── index.html
-│   ├── app.js
-│   └── styles.css
 ├── examples/               # Usage examples
 ├── pyproject.toml          # Package configuration
 ├── requirements.txt        # Dependencies
 ├── README.md               # Project documentation
 ├── USAGE.md                # Detailed usage guide
 ├── LICENSE                 # CC0 license
+├── .env.example            # Environment template (checked into git)
+├── .gitignore              # Git ignore rules
 └── run.py                  # Convenience startup script (optional)
 ```
 
@@ -125,6 +133,34 @@ peewee
 click
 python-dotenv
 requests
+```
+
+## .gitignore
+
+```
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# Project data
+*.db
+*.sqlite
 ```
 
 ## Data Storage Locations

@@ -258,11 +258,29 @@ DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 ## Migration Scripts
 
+Migration scripts should typically be **ephemeral**: run once to update the schema, then deleted. Do not retain migration scripts in the codebase by default.
+
+**When to retain migrations:**
+- Only for established codebases with production data that may need the same migration applied across multiple deployments
+- If unsure whether a codebase is "established", ask the user for guidance before deciding
+
+**If retained:**
+- Place in `scripts/migrations/` with a date prefix (e.g., `2024_01_15_add_status_column.py`)
+- Add detailed comments explaining what the migration does and why
+- Remove migration scripts as soon as they've been applied to all environments
+
 For schema changes, create scripts in `scripts/`:
 
 ```python
 #!/usr/bin/env python3
-"""Add new_column to items table."""
+"""
+Migration: Add status column to items table.
+
+Run once and delete. For established codebases only, remove after
+all deployments have been migrated.
+
+Created: 2024-01-15
+"""
 
 from peewee import SqliteDatabase, CharField
 from playhouse.migrate import SqliteMigrator, migrate

@@ -5,7 +5,7 @@ Three-tier configuration: environment variables, .env files, and settings.yaml.
 ## Configuration Hierarchy
 
 1. **Environment variables** - Highest priority, for secrets and deployment overrides
-2. **.env files** - Development defaults, checked into git (without secrets)
+2. **.env files** - Local development config, MUST NOT be checked into git
 3. **settings.yaml** - User-specific settings at `~/.<project_name>/settings.yaml`
 4. **Code defaults** - Fallback values in config.py
 
@@ -193,11 +193,11 @@ allowed_hosts:
 
 ## .env File Format
 
-For development defaults and deployment:
+`.env` files MUST NOT be checked into git. Use `.env.example` as a template (see below).
 
 ```bash
-# .env - Development defaults
-# NEVER put actual secrets in committed .env files
+# .env - Local development config (NOT checked into git)
+# Copy from .env.example and fill in your values
 
 # Server
 HOST=0.0.0.0
@@ -217,8 +217,10 @@ LOG_PATH=/tmp/project_name/app.log
 
 ## .env.example Template
 
+`.env.example` should be checked into git as a template for required environment variables.
+
 ```bash
-# .env.example - Copy to .env and fill in values
+# .env.example - Copy to .env and fill in values (this file IS checked into git)
 
 # Server Configuration
 HOST=0.0.0.0
