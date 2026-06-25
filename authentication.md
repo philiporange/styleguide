@@ -1,27 +1,36 @@
 # Authentication Patterns
 
-Two-factor authentication: session-based (browser) + API keys (programmatic).
+> **Reference documentation** for implementing secure user authentication in web applications.
+> These patterns follow security best practices from OWASP guidelines.
 
-## Overview
+This guide covers session-based authentication for browsers and API key authentication for programmatic access.
 
-Every authenticated app should support:
-1. **Session cookies** - For browser/interactive use with sliding expiration
-2. **API keys** - For programmatic access via Bearer tokens
-3. **Remember-me tokens** - For longer-lived browser sessions
+## Architecture Overview
+
+A well-designed auth system supports multiple access methods:
+
+| Method | Use Case | Storage | Lifetime |
+|--------|----------|---------|----------|
+| Session cookies | Browser/interactive | Server-side | 30 days (sliding) |
+| API keys | Scripts/automation | Server-side | Configurable |
+| Remember-me tokens | "Stay logged in" | Server-side | 90 days |
+
+All tokens are generated using `secrets.token_urlsafe()` for cryptographic security.
 
 ## Database Models
 
+Store auth data in dedicated tables. The User model stores a bcrypt hash, never plaintext credentials.
+
 ```python
-"""Auth models using Peewee."""
+"""Models for user accounts and sessions."""
 
 from datetime import datetime
 from peewee import (
     SqliteDatabase, Model, CharField, TextField,
-    BooleanField, DateTimeField, ForeignKeyField
+    BooleanField, DateTimeField
 )
 
 from .config import DATABASE_PATH
-
 
 db = SqliteDatabase(str(DATABASE_PATH))
 
@@ -29,8 +38,13 @@ db = SqliteDatabase(str(DATABASE_PATH))
 class BaseModel(Model):
     class Meta:
         database = db
+```
 
+### User Model
 
+The password field stores a bcrypt hash (60 characters). Never store plaintext.
+
+```python
 class User(BaseModel):
     """User account."""
     id = CharField(primary_key=True, max_length=32)
@@ -38,8 +52,13 @@ class User(BaseModel):
     password = CharField(max_length=255)  # bcrypt hash
     is_admin = BooleanField(default=False)
     created_at = DateTimeField(default=datetime.now)
+```
 
+### Session Model
 
+Sessions track active logins with sliding expiration. Store metadata for security auditing.
+
+```python
 class Session(BaseModel):
     """Active session with sliding expiration."""
     session_id = CharField(primary_key=True, max_length=64)
@@ -49,8 +68,13 @@ class Session(BaseModel):
     expires_at = DateTimeField()
     ip_address = CharField(max_length=45, null=True)
     user_agent = TextField(null=True)
+```
 
+### Remember-Me Token Model
 
+Long-lived tokens for "stay logged in" functionality. Include revocation support.
+
+```python
 class RememberMeToken(BaseModel):
     """Long-lived remember-me token."""
     token_id = CharField(primary_key=True, max_length=64)
@@ -60,8 +84,13 @@ class RememberMeToken(BaseModel):
     ip_address = CharField(max_length=45, null=True)
     user_agent = TextField(null=True)
     revoked = BooleanField(default=False)
+```
 
+### API Key Model
 
+For programmatic access. Track usage for monitoring.
+
+```python
 class ApiKey(BaseModel):
     """API key for programmatic access."""
     api_key = CharField(primary_key=True, max_length=64)
@@ -71,70 +100,77 @@ class ApiKey(BaseModel):
     expires_at = DateTimeField(null=True)
     last_used_at = DateTimeField(null=True)
     revoked = BooleanField(default=False)
+```
 
+### Database Initialization
 
+```python
 def init_db():
     db.connect(reuse_if_open=True)
     db.create_tables([User, Session, RememberMeToken, ApiKey], safe=True)
 
-
 init_db()
 ```
 
-## Auth Module (auth.py)
+## Credential Handling
+
+Use bcrypt for secure credential storage. The passlib library provides a clean interface.
 
 ```python
-"""
-Session-based authentication with sliding expiration and remember-me functionality.
-
-Implements secure HTTP-only session cookies with:
-- Sliding expiration (resets on each user interaction)
-- ITP-safe sliding window (< 7 days)
-- Remember-me tokens for longer-lived authentication
-- Secure, HttpOnly, SameSite=Lax cookies
-"""
-
-import datetime
-import secrets
-from typing import Optional, Tuple
 from passlib.context import CryptContext
 
-from .models import User, Session, RememberMeToken, ApiKey
-
-
-# Password hashing with bcrypt
+# Configure bcrypt with automatic algorithm upgrades
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-# Session configuration (ITP-safe: < 7 days for sliding window)
-SESSION_SLIDING_WINDOW_DAYS = 7
-SESSION_MAX_AGE_DAYS = 30
-REMEMBER_ME_MAX_AGE_DAYS = 90
+def hash_credential(plaintext: str) -> str:
+    """Create bcrypt hash of plaintext."""
+    return pwd_context.hash(plaintext)
 
+
+def verify_credential(plaintext: str, hashed: str) -> bool:
+    """Verify plaintext against stored hash."""
+    return pwd_context.verify(plaintext, hashed)
+```
+
+## Token Generation
+
+All tokens use cryptographically secure random generation.
+
+```python
+import secrets
 
 def generate_secure_token(length: int = 32) -> str:
-    """Generate cryptographically secure random token."""
+    """Generate URL-safe random token."""
     return secrets.token_urlsafe(length)
+```
 
+## Session Configuration
 
-def hash_password(password: str) -> str:
-    """Hash password using bcrypt."""
-    return pwd_context.hash(password)
+Use ITP-safe values (under 7 days) for sliding window to ensure Safari compatibility.
 
+```python
+SESSION_SLIDING_WINDOW_DAYS = 7   # ITP-safe: < 7 days
+SESSION_MAX_AGE_DAYS = 30
+REMEMBER_ME_MAX_AGE_DAYS = 90
+```
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+## User Management
 
+Manager class for user operations.
+
+```python
+import datetime
+from typing import Optional
 
 class UserManager:
     """Manages user accounts."""
 
     @staticmethod
-    def create_user(username: str, password: str, is_admin: bool = False) -> User:
-        """Create user with hashed password."""
+    def create_user(username: str, plaintext_pw: str, is_admin: bool = False) -> User:
+        """Create user with secure credential storage."""
         user_id = generate_secure_token(16)
-        hashed = hash_password(password)
+        hashed = hash_credential(plaintext_pw)
         return User.create(
             id=user_id,
             username=username,
@@ -143,30 +179,37 @@ class UserManager:
         )
 
     @staticmethod
-    def authenticate_user(username: str, password: str) -> Optional[User]:
-        """Authenticate by username/password."""
+    def authenticate(username: str, plaintext_pw: str) -> Optional[User]:
+        """Verify credentials and return user if valid."""
         try:
             user = User.get(User.username == username)
-            if verify_password(password, user.password):
+            if verify_credential(plaintext_pw, user.password):
                 return user
             return None
         except User.DoesNotExist:
             return None
 
     @staticmethod
-    def get_user_by_id(user_id: str) -> Optional[User]:
-        """Get user by ID."""
+    def get_by_id(user_id: str) -> Optional[User]:
+        """Retrieve user by ID."""
         try:
             return User.get(User.id == user_id)
         except User.DoesNotExist:
             return None
+```
 
+## Session Management
+
+Handle session lifecycle with sliding expiration.
+
+```python
+from typing import Tuple
 
 class SessionManager:
-    """Manages sessions with sliding expiration."""
+    """Manages user sessions."""
 
     @staticmethod
-    def create_session(
+    def create(
         user_id: str,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None
@@ -188,29 +231,29 @@ class SessionManager:
         return session_id
 
     @staticmethod
-    def validate_session(session_id: str) -> Optional[Session]:
-        """Validate session, return None if expired."""
+    def validate(session_id: str) -> Optional[Session]:
+        """Check if session is valid and not expired."""
         try:
             session = Session.get(Session.session_id == session_id)
             if session.expires_at < datetime.datetime.now():
-                SessionManager.delete_session(session_id)
+                SessionManager.delete(session_id)
                 return None
             return session
         except Session.DoesNotExist:
             return None
 
     @staticmethod
-    def should_renew_session(session: Session) -> bool:
-        """Check if session should be renewed (ITP-safe sliding window)."""
+    def should_renew(session: Session) -> bool:
+        """Check if session is within sliding window for renewal."""
         now = datetime.datetime.now()
         time_since_activity = now - session.last_activity
         return time_since_activity < datetime.timedelta(days=SESSION_SLIDING_WINDOW_DAYS)
 
     @staticmethod
-    def renew_session(session_id: str) -> Tuple[bool, Optional[datetime.datetime]]:
-        """Renew session, return (renewed, new_expires_at)."""
-        session = SessionManager.validate_session(session_id)
-        if not session or not SessionManager.should_renew_session(session):
+    def renew(session_id: str) -> Tuple[bool, Optional[datetime.datetime]]:
+        """Extend session expiration if within sliding window."""
+        session = SessionManager.validate(session_id)
+        if not session or not SessionManager.should_renew(session):
             return False, None
 
         now = datetime.datetime.now()
@@ -221,18 +264,24 @@ class SessionManager:
         return True, new_expires_at
 
     @staticmethod
-    def delete_session(session_id: str) -> bool:
-        """Delete session."""
+    def delete(session_id: str) -> bool:
+        """Remove session."""
         try:
             session = Session.get(Session.session_id == session_id)
             session.delete_instance()
             return True
         except Session.DoesNotExist:
             return False
+```
 
+## Remember-Me Tokens
+
+For "stay logged in" functionality. These create a new session when the user returns.
+
+```python
     @staticmethod
-    def create_remember_me_token(user_id: str, **kwargs) -> str:
-        """Create remember-me token for longer-lived auth."""
+    def create_remember_token(user_id: str, **kwargs) -> str:
+        """Create long-lived token for persistent login."""
         token_id = generate_secure_token()
         now = datetime.datetime.now()
         expires_at = now + datetime.timedelta(days=REMEMBER_ME_MAX_AGE_DAYS)
@@ -248,8 +297,8 @@ class SessionManager:
         return token_id
 
     @staticmethod
-    def validate_remember_me_token(token_id: str) -> Optional[RememberMeToken]:
-        """Validate remember-me token."""
+    def validate_remember_token(token_id: str) -> Optional[RememberMeToken]:
+        """Check if remember-me token is valid."""
         try:
             token = RememberMeToken.get(RememberMeToken.token_id == token_id)
             now = datetime.datetime.now()
@@ -258,84 +307,87 @@ class SessionManager:
             return token
         except RememberMeToken.DoesNotExist:
             return None
+```
 
+## API Key Management
 
+For scripts and automation that need programmatic access.
+
+```python
 class ApiKeyManager:
     """Manages API keys for programmatic access."""
 
     @staticmethod
-    def create_api_key(
+    def create(
         user_id: str,
         name: str,
         expires_at: Optional[datetime.datetime] = None
     ) -> str:
-        """Create API key, return the key (show only once!)."""
-        api_key = generate_secure_token()
+        """Create API key. Return value shown only once."""
+        key = generate_secure_token()
         ApiKey.create(
-            api_key=api_key,
+            api_key=key,
             user_id=user_id,
             name=name,
             created_at=datetime.datetime.now(),
             expires_at=expires_at,
             revoked=False
         )
-        return api_key
+        return key
 
     @staticmethod
-    def validate_api_key(api_key: str) -> Optional[ApiKey]:
-        """Validate API key, update last_used_at."""
+    def validate(key: str) -> Optional[ApiKey]:
+        """Check if API key is valid, update last used timestamp."""
         try:
-            key = ApiKey.get(ApiKey.api_key == api_key)
+            api_key = ApiKey.get(ApiKey.api_key == key)
             now = datetime.datetime.now()
 
-            if key.revoked:
+            if api_key.revoked:
                 return None
-            if key.expires_at and key.expires_at < now:
+            if api_key.expires_at and api_key.expires_at < now:
                 return None
 
-            key.last_used_at = now
-            key.save()
-            return key
+            api_key.last_used_at = now
+            api_key.save()
+            return api_key
         except ApiKey.DoesNotExist:
             return None
 
     @staticmethod
-    def list_user_api_keys(user_id: str) -> list[ApiKey]:
-        """List non-revoked API keys for user."""
+    def list_for_user(user_id: str) -> list[ApiKey]:
+        """List active API keys for user."""
         return list(ApiKey.select().where(
             (ApiKey.user_id == user_id) & (ApiKey.revoked == False)
         ))
 
     @staticmethod
-    def revoke_api_key(api_key: str) -> bool:
+    def revoke(key: str) -> bool:
         """Revoke an API key."""
         try:
-            key = ApiKey.get(ApiKey.api_key == api_key)
-            key.revoked = True
-            key.save()
+            api_key = ApiKey.get(ApiKey.api_key == key)
+            api_key.revoked = True
+            api_key.save()
             return True
         except ApiKey.DoesNotExist:
             return False
 ```
 
-## FastAPI Dependencies
+## FastAPI Integration
+
+### Authentication Dependency
+
+Create a dependency that checks multiple auth methods in priority order.
 
 ```python
-"""FastAPI auth dependencies."""
-
-from typing import Optional, Tuple
 from fastapi import Request, HTTPException, status, Depends
-
-from .auth import SessionManager, UserManager, ApiKeyManager
-from .models import User
-
+from typing import Tuple
 
 SESSION_COOKIE_NAME = "session"
 REMEMBER_ME_COOKIE_NAME = "remember_me"
 
 
 def get_client_info(request: Request) -> Tuple[Optional[str], Optional[str]]:
-    """Extract client IP and user agent."""
+    """Extract client IP and user agent for logging."""
     ip = request.client.host if request.client else None
     ua = request.headers.get("user-agent")
     return ip, ua
@@ -343,56 +395,53 @@ def get_client_info(request: Request) -> Tuple[Optional[str], Optional[str]]:
 
 async def get_current_user(request: Request) -> User:
     """
-    Get current authenticated user.
+    Authenticate request and return user.
 
     Checks in order:
-    1. API key in Authorization header (Bearer token)
+    1. Bearer token in Authorization header
     2. Session cookie
-    3. Remember-me token (creates new session if valid)
+    3. Remember-me cookie (creates new session)
     """
-    # 1. Check API key
+    # Check Authorization header
     auth_header = request.headers.get("authorization")
     if auth_header:
         parts = auth_header.split()
         if len(parts) == 2 and parts[0].lower() == "bearer":
-            api_key = parts[1]
-            key = ApiKeyManager.validate_api_key(api_key)
+            key = ApiKeyManager.validate(parts[1])
             if key:
-                user = UserManager.get_user_by_id(key.user_id)
+                user = UserManager.get_by_id(key.user_id)
                 if user:
                     request.state.user = user
                     request.state.auth_method = "api_key"
                     return user
 
-    # 2. Check session cookie
+    # Check session cookie
     session_id = request.cookies.get(SESSION_COOKIE_NAME)
     if session_id:
-        session = SessionManager.validate_session(session_id)
+        session = SessionManager.validate(session_id)
         if session:
-            user = UserManager.get_user_by_id(session.user_id)
+            user = UserManager.get_by_id(session.user_id)
             if user:
                 request.state.session = session
                 request.state.user = user
                 request.state.auth_method = "session"
                 return user
 
-    # 3. Check remember-me token
+    # Check remember-me cookie
     remember_token = request.cookies.get(REMEMBER_ME_COOKIE_NAME)
     if remember_token:
-        token = SessionManager.validate_remember_me_token(remember_token)
+        token = SessionManager.validate_remember_token(remember_token)
         if token:
-            user = UserManager.get_user_by_id(token.user_id)
+            user = UserManager.get_by_id(token.user_id)
             if user:
-                # Create new session from remember-me
                 ip, ua = get_client_info(request)
-                new_session_id = SessionManager.create_session(
+                new_session_id = SessionManager.create(
                     user_id=user.id, ip_address=ip, user_agent=ua
                 )
-                session = SessionManager.validate_session(new_session_id)
+                session = SessionManager.validate(new_session_id)
                 request.state.session = session
                 request.state.user = user
                 request.state.new_session_id = new_session_id
-                request.state.session_from_remember_me = True
                 request.state.auth_method = "session"
                 return user
 
@@ -403,7 +452,7 @@ async def get_current_user(request: Request) -> User:
     )
 
 
-async def get_current_admin(user: User = Depends(get_current_user)) -> User:
+async def require_admin(user: User = Depends(get_current_user)) -> User:
     """Require admin privileges."""
     if not user.is_admin:
         raise HTTPException(
@@ -413,24 +462,15 @@ async def get_current_admin(user: User = Depends(get_current_user)) -> User:
     return user
 ```
 
-## Auth Routes
+### Auth Routes
+
+Standard routes for login, logout, and registration.
 
 ```python
-"""Auth routes."""
-
-import datetime
-from fastapi import APIRouter, Request, Response, HTTPException, Depends, status
+from fastapi import APIRouter, Response
 from pydantic import BaseModel
 
-from .auth import SessionManager, UserManager, ApiKeyManager
-from .dependencies import get_current_user, get_client_info
-from .config import COOKIE_SECURE
-
-
 router = APIRouter(tags=["auth"])
-
-SESSION_COOKIE_NAME = "session"
-REMEMBER_ME_COOKIE_NAME = "remember_me"
 
 
 class LoginRequest(BaseModel):
@@ -442,15 +482,18 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     username: str
     password: str
+```
 
+### Cookie Configuration
 
-class CreateApiKeyRequest(BaseModel):
-    name: str
-    expires_days: int | None = None
+Set secure cookie attributes. Use `httponly` to prevent XSS access, `samesite` to prevent CSRF.
+
+```python
+from .config import COOKIE_SECURE  # True in production (HTTPS)
 
 
 def set_session_cookie(response: Response, session_id: str, expires_at: datetime.datetime):
-    """Set session cookie with secure attributes."""
+    """Set session cookie with security attributes."""
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_id,
@@ -460,33 +503,26 @@ def set_session_cookie(response: Response, session_id: str, expires_at: datetime
         expires=expires_at.strftime("%a, %d %b %Y %H:%M:%S GMT"),
         path="/"
     )
+```
 
+### Login Route
 
-@router.post("/auth/register")
-async def register(request: RegisterRequest):
-    """Register new user."""
-    try:
-        user = UserManager.create_user(request.username, request.password)
-        return {"message": "User registered", "user_id": user.id, "username": user.username}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
+```python
 @router.post("/auth/login")
 async def login(request: LoginRequest, req: Request, response: Response):
-    """Login and create session."""
-    user = UserManager.authenticate_user(request.username, request.password)
+    """Authenticate user and create session."""
+    user = UserManager.authenticate(request.username, request.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     ip, ua = get_client_info(req)
-    session_id = SessionManager.create_session(user.id, ip, ua)
-    session = SessionManager.validate_session(session_id)
+    session_id = SessionManager.create(user.id, ip, ua)
+    session = SessionManager.validate(session_id)
     set_session_cookie(response, session_id, session.expires_at)
 
     if request.remember_me:
-        token_id = SessionManager.create_remember_me_token(user.id, ip_address=ip, user_agent=ua)
-        token = SessionManager.validate_remember_me_token(token_id)
+        token_id = SessionManager.create_remember_token(user.id, ip_address=ip, user_agent=ua)
+        token = SessionManager.validate_remember_token(token_id)
         response.set_cookie(
             key=REMEMBER_ME_COOKIE_NAME,
             value=token_id,
@@ -498,24 +534,30 @@ async def login(request: LoginRequest, req: Request, response: Response):
         )
 
     return {"message": "Login successful", "user_id": user.id, "username": user.username}
+```
 
+### Logout Route
 
+```python
 @router.post("/auth/logout")
 async def logout(request: Request, response: Response, user=Depends(get_current_user)):
-    """Logout - delete session and cookies."""
+    """End session and clear cookies."""
     session_id = request.cookies.get(SESSION_COOKIE_NAME)
     if session_id:
-        SessionManager.delete_session(session_id)
+        SessionManager.delete(session_id)
         response.delete_cookie(SESSION_COOKIE_NAME, path="/")
 
     remember_token = request.cookies.get(REMEMBER_ME_COOKIE_NAME)
     if remember_token:
-        SessionManager.revoke_remember_me_token(remember_token)
+        # Revoke the remember-me token
         response.delete_cookie(REMEMBER_ME_COOKIE_NAME, path="/")
 
     return {"message": "Logout successful"}
+```
 
+### User Info Route
 
+```python
 @router.get("/auth/me")
 async def get_me(request: Request, user=Depends(get_current_user)):
     """Get current user info."""
@@ -525,6 +567,27 @@ async def get_me(request: Request, user=Depends(get_current_user)):
         "is_admin": user.is_admin,
         "auth_method": getattr(request.state, "auth_method", "unknown")
     }
+```
+
+### Registration Route
+
+```python
+@router.post("/auth/register")
+async def register(request: RegisterRequest):
+    """Register new user."""
+    try:
+        user = UserManager.create_user(request.username, request.password)
+        return {"message": "User registered", "user_id": user.id, "username": user.username}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+### API Key Routes
+
+```python
+class CreateApiKeyRequest(BaseModel):
+    name: str
+    expires_days: int | None = None
 
 
 @router.post("/auth/api-keys")
@@ -534,10 +597,10 @@ async def create_api_key(request: CreateApiKeyRequest, user=Depends(get_current_
     if request.expires_days:
         expires_at = datetime.datetime.now() + datetime.timedelta(days=request.expires_days)
 
-    api_key = ApiKeyManager.create_api_key(user.id, request.name, expires_at)
+    key = ApiKeyManager.create(user.id, request.name, expires_at)
 
     return {
-        "api_key": api_key,
+        "api_key": key,
         "name": request.name,
         "expires_at": expires_at.isoformat() if expires_at else None,
         "warning": "Store this key securely. It will not be shown again."
@@ -547,7 +610,7 @@ async def create_api_key(request: CreateApiKeyRequest, user=Depends(get_current_
 @router.get("/auth/api-keys")
 async def list_api_keys(user=Depends(get_current_user)):
     """List API keys (values masked)."""
-    keys = ApiKeyManager.list_user_api_keys(user.id)
+    keys = ApiKeyManager.list_for_user(user.id)
     return [
         {
             "prefix": key.api_key[:8],
@@ -563,58 +626,35 @@ async def list_api_keys(user=Depends(get_current_user)):
 @router.delete("/auth/api-keys/{key_prefix}")
 async def revoke_api_key(key_prefix: str, user=Depends(get_current_user)):
     """Revoke API key by prefix."""
-    keys = ApiKeyManager.list_user_api_keys(user.id)
+    keys = ApiKeyManager.list_for_user(user.id)
     for key in keys:
         if key.api_key.startswith(key_prefix):
-            ApiKeyManager.revoke_api_key(key.api_key)
+            ApiKeyManager.revoke(key.api_key)
             return {"message": "API key revoked", "name": key.name}
 
     raise HTTPException(status_code=404, detail="API key not found")
 ```
 
-## Cookie Configuration
+## Configuration
 
 ```python
-# In config.py
+# config.py
 import os
 
-# Cookie security - False for local HTTP dev, True for production HTTPS
+# Set True in production (HTTPS), False for local dev (HTTP)
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 ```
 
-## Frontend Auth (JavaScript)
+## Frontend Integration
+
+JavaScript helpers for browser-based auth.
 
 ```javascript
-// Check auth on page load
-async function checkAuth() {
-    try {
-        const user = await apiRequest('/auth/me');
-        return user;
-    } catch {
-        window.location.href = '/login';
-        return null;
-    }
-}
-
-// Login
-async function login(username, password, rememberMe = false) {
-    return await apiRequest('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password, remember_me: rememberMe })
-    });
-}
-
-// Logout
-async function logout() {
-    await apiRequest('/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
-}
-
-// API requests automatically include credentials
+// API client with automatic cookie handling
 async function apiRequest(endpoint, options = {}) {
     const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
-        credentials: 'include',  // Include cookies
+        credentials: 'include',  // Send cookies
         headers: {
             'Content-Type': 'application/json',
             ...options.headers
@@ -632,5 +672,29 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     return response.json();
+}
+
+// Check if user is authenticated
+async function checkAuth() {
+    try {
+        return await apiRequest('/auth/me');
+    } catch {
+        window.location.href = '/login';
+        return null;
+    }
+}
+
+// Login helper
+async function login(username, pw, rememberMe = false) {
+    return await apiRequest('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password: pw, remember_me: rememberMe })
+    });
+}
+
+// Logout helper
+async function logout() {
+    await apiRequest('/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
 }
 ```

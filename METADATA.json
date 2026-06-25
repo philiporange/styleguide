@@ -1,0 +1,93 @@
+{
+  "name": "styleguide",
+  "short_description": "Comprehensive coding patterns and conventions guide for Python FastAPI projects with authentication, databases, and frontends.",
+  "long_description": "A detailed reference guide documenting best practices and standard patterns for building Python web applications. It covers the complete stack including FastAPI backend, SQLite databases with Peewee ORM, session-based and API key authentication, configuration management, CLI tools using Click, responsive frontends with Tailwind CSS and vanilla JavaScript, and proper project structure. The guide includes code examples, architecture decisions, and security best practices from OWASP guidelines. It serves as the style reference for all Python projects in the workspace.",
+  "keywords": [
+    "python",
+    "fastapi",
+    "web-development",
+    "coding-standards",
+    "design-patterns",
+    "best-practices",
+    "authentication",
+    "sqlite",
+    "peewee-orm",
+    "rest-api",
+    "frontend-patterns",
+    "tailwind-css",
+    "vanilla-js",
+    "cli-patterns",
+    "click",
+    "configuration-management",
+    "project-structure",
+    "security",
+    "bcrypt",
+    "session-management",
+    "api-keys",
+    "style-guide",
+    "reference-documentation"
+  ],
+  "primary_language": "Markdown",
+  "languages": [
+    "Markdown",
+    "Python",
+    "JavaScript",
+    "HTML",
+    "CSS",
+    "YAML",
+    "TOML"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Peewee ORM",
+    "Click",
+    "Tailwind CSS",
+    "Uvicorn"
+  ],
+  "modules": [
+    {
+      "path": "README.md",
+      "description": "Overview of all styleguide documents with quick reference for stack, new project checklist, and key conventions."
+    },
+    {
+      "path": "python-project-structure.md",
+      "description": "Complete guide for organizing Python package directories, including package structure rules, __init__.py exports, pyproject.toml templates, and data storage conventions."
+    },
+    {
+      "path": "fastapi-patterns.md",
+      "description": "FastAPI server patterns including basic structure, route organization, static file serving, error handling, background tasks, and file uploads."
+    },
+    {
+      "path": "authentication.md",
+      "description": "Comprehensive authentication guide covering session cookies, API keys, remember-me tokens, bcrypt credential hashing, user and session management, and FastAPI integration."
+    },
+    {
+      "path": "database-patterns.md",
+      "description": "SQLite and Peewee ORM patterns including database setup, field types, CRUD operations, query patterns, relationships, transactions, and migration strategies."
+    },
+    {
+      "path": "configuration.md",
+      "description": "Configuration management patterns with three-tier hierarchy (environment variables, .env files, settings.yaml), configuration classes, and directory structures."
+    },
+    {
+      "path": "code-style.md",
+      "description": "Python code style guidelines including type hints, dataclasses, error handling, logging, context managers, lazy loading, string formatting, and naming conventions."
+    },
+    {
+      "path": "frontend-patterns.md",
+      "description": "Frontend design and development patterns with minimalist philosophy, responsive mobile-first design, hamburger menus, Tailwind CSS layouts, and vanilla JavaScript patterns."
+    },
+    {
+      "path": "client-library.md",
+      "description": "Guidelines for building Python client libraries for APIs including request wrappers, authentication handling, error management, and usage examples."
+    },
+    {
+      "path": "cli-patterns.md",
+      "description": "Click CLI framework patterns including command groups, argument handling, options, error handling, and entry point configuration."
+    },
+    {
+      "path": "documentation.md",
+      "description": "Documentation standards for README files, USAGE guides, docstrings, inline comments, and keeping documentation maintainable."
+    }
+  ]
+}

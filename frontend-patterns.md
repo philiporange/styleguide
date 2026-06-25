@@ -126,7 +126,6 @@ On large screens (`lg:` and up), show a persistent sidebar instead of the hambur
 - **Vanilla JavaScript** (no React, Vue, etc.)
 - **Handlebars** for HTML templates (cleaner, reusable markup)
 - **Font Awesome** for icons via CDN
-- **Inter font** from Google Fonts
 - **FastAPI** for serving static files
 
 ## Directory Structure
@@ -234,16 +233,11 @@ Use Handlebars for reusable HTML components. Load templates client-side and comp
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 
-    <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
     <!-- Custom styles -->
     <link href="/static/css/style.css" rel="stylesheet">
 
     <!-- Handlebars -->
     <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.8/dist/handlebars.min.js"></script>
-
-    <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
 <body class="h-full">
     {{> content}}
@@ -343,10 +337,8 @@ Use Handlebars for reusable HTML components. Load templates client-side and comp
     <title>Dashboard - Project Name</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.8/dist/handlebars.min.js"></script>
-    <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
 <body class="h-full">
 
