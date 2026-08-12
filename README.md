@@ -2,6 +2,8 @@
 
 Coding patterns and conventions for Python projects. Use these documents as context when generating new projects.
 
+For **iOS apps** (SwiftUI structure and the minimalist design system), see [ios/](ios/README.md).
+
 ## Documents
 
 | File | Description |

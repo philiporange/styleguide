@@ -1,7 +1,7 @@
 {
   "name": "styleguide",
-  "short_description": "Comprehensive coding patterns and conventions guide for Python FastAPI projects with authentication, databases, and frontends.",
-  "long_description": "A detailed reference guide documenting best practices and standard patterns for building Python web applications. It covers the complete stack including FastAPI backend, SQLite databases with Peewee ORM, session-based and API key authentication, configuration management, CLI tools using Click, responsive frontends with Tailwind CSS and vanilla JavaScript, and proper project structure. The guide includes code examples, architecture decisions, and security best practices from OWASP guidelines. It serves as the style reference for all Python projects in the workspace.",
+  "short_description": "Comprehensive coding patterns and conventions guide for Python FastAPI projects and native SwiftUI iOS apps, covering authentication, databases, frontends, and a minimalist design system.",
+  "long_description": "A detailed reference guide documenting best practices and standard patterns for building Python web applications and native iOS apps. For Python it covers the complete stack including FastAPI backend, SQLite databases with Peewee ORM, session-based and API key authentication, configuration management, CLI tools using Click, responsive frontends with Tailwind CSS and vanilla JavaScript, and proper project structure. For iOS (in the ios/ directory) it covers SwiftUI project structure, a modern minimalist/sparse design system, simple login screens, the Commercial Cat splash screen, and Keychain-based token auth. The guide includes code examples, architecture decisions, and security best practices from OWASP guidelines. It serves as the style reference for all projects in the workspace.",
   "keywords": [
     "python",
     "fastapi",
@@ -25,12 +25,20 @@
     "session-management",
     "api-keys",
     "style-guide",
-    "reference-documentation"
+    "reference-documentation",
+    "ios",
+    "swift",
+    "swiftui",
+    "swiftdata",
+    "mobile-development",
+    "minimalist-design",
+    "keychain"
   ],
   "primary_language": "Markdown",
   "languages": [
     "Markdown",
     "Python",
+    "Swift",
     "JavaScript",
     "HTML",
     "CSS",
@@ -42,7 +50,9 @@
     "Peewee ORM",
     "Click",
     "Tailwind CSS",
-    "Uvicorn"
+    "Uvicorn",
+    "SwiftUI",
+    "SwiftData"
   ],
   "modules": [
     {
@@ -88,6 +98,26 @@
     {
       "path": "documentation.md",
       "description": "Documentation standards for README files, USAGE guides, docstrings, inline comments, and keeping documentation maintainable."
+    },
+    {
+      "path": "ios/README.md",
+      "description": "Index and quick reference for the iOS styleguide: SwiftUI stack, new project checklist, key conventions, and design tokens."
+    },
+    {
+      "path": "ios/project-structure.md",
+      "description": "iOS project layout with a flat SwiftUI source directory, the @main App entry point and auth gate, SwiftData persistence, singleton managers, Info.plist, and device deployment commands."
+    },
+    {
+      "path": "ios/design.md",
+      "description": "The minimalist iOS design system: single accent color, system materials, corner-radius and spacing tokens, SF Symbols, native components (ContentUnavailableView, plain lists, adaptive grids), seeded pastel placeholders, motion, and haptics."
+    },
+    {
+      "path": "ios/login-and-splash.md",
+      "description": "The Commercial Cat splash screen, the simple username/password login screen, and the Keychain-based Bearer token auth gate."
+    },
+    {
+      "path": "ios/code-style.md",
+      "description": "Swift/SwiftUI code style: file doc headers, MARK organization, async/await concurrency, actors and main-actor managers, typed LocalizedError enums, model/DTO conventions, and naming."
     }
   ]
 }
